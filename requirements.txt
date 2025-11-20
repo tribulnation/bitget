@@ -1,0 +1,9 @@
+build
+twine
+ipykernel
+pyright
+httpx
+websockets
+pydantic
+python-dotenv
+-e bitget
