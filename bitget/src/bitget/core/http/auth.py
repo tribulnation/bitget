@@ -14,7 +14,7 @@ def sign(payload: bytes, *, secret: str) -> bytes:
   d = hmac.new(secret.encode(), payload, hashlib.sha256).digest()
   return base64.b64encode(d)
 
-def payload(*, timestamp: int, method: str, path: str, query: str = '', body: bytes = '') -> bytes:
+def payload(*, timestamp: int, method: str, path: str, query: str = '', body: bytes = b'') -> bytes:
   return f'{timestamp}{method}{path}{query}'.encode() + body
 
 
@@ -55,15 +55,15 @@ class AuthHttpClient(HttpClient):
     body = orjson.dumps(json) if json else b''
     prehash = payload(timestamp=ts, method=method, path=path, query=query, body=body)
     signature = sign(prehash, secret=self.secret_key)
-    headers = {
+    new_headers = {
       'Access-Key': self.access_key,
       'Access-Sign': signature,
       'Access-Timestamp': str(ts),
       'Access-Passphrase': self.passphrase,
     }
-    headers.update(headers or {})
+    new_headers.update(headers or {})
     return await self.request(
-      method, url, headers=headers, params=params, json=json,
+      method, url, headers=new_headers, params=params, json=json,
       content=content, data=data, files=files, auth=auth,
       follow_redirects=follow_redirects, cookies=cookies,
       timeout=timeout, extensions=extensions,
