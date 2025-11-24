@@ -8,6 +8,7 @@ from .common import Common
 from .spot import Spot
 from .futures import Futures
 from .earn import Earn
+from .margin import Margin
 
 @dataclass
 class Bitget:
@@ -15,6 +16,7 @@ class Bitget:
   spot: Spot
   futures: Futures
   earn: Earn
+  margin: Margin
 
   @classmethod
   def new(
@@ -34,6 +36,7 @@ class Bitget:
       spot=Spot(auth_http=auth_http, base_url=base_url, default_validate=validate),
       futures=Futures(auth_http=auth_http, base_url=base_url, default_validate=validate),
       earn=Earn(auth_http=auth_http, base_url=base_url, default_validate=validate),
+      margin=Margin.of(auth_http=auth_http, base_url=base_url, default_validate=validate),
     )
   
   async def __aenter__(self):
@@ -42,6 +45,7 @@ class Bitget:
       self.spot.__aenter__(),
       self.futures.__aenter__(),
       self.earn.__aenter__(),
+      self.margin.__aenter__(),
     )
     return self
   
@@ -51,4 +55,5 @@ class Bitget:
       self.spot.__aexit__(exc_type, exc_value, traceback),
       self.futures.__aexit__(exc_type, exc_value, traceback),
       self.earn.__aexit__(exc_type, exc_value, traceback),
+      self.margin.__aexit__(exc_type, exc_value, traceback),
     )
