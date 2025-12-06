@@ -1,4 +1,3 @@
-import os
 from dataclasses import dataclass
 
 from bitget import Bitget
@@ -11,7 +10,7 @@ class SdkMixin:
 
   @classmethod
   def new(
-    cls, access_key: str, secret_key: str, passphrase: str, *,
+    cls, access_key: str | None = None, secret_key: str | None = None, passphrase: str | None = None, *,
     validate: bool = True
   ):
     client = Bitget.new(access_key=access_key, secret_key=secret_key, passphrase=passphrase)

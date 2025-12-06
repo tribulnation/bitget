@@ -24,14 +24,14 @@ class validator(Generic[T]):
     try:
       return self.adapter.validate_json(data)
     except PydanticValidationError as e:
-      raise ValidationError from e
+      raise ValidationError(*e.args) from e
 
   def python(self, data: Any) -> T:
     from pydantic import ValidationError as PydanticValidationError
     try:
       return self.adapter.validate_python(data)
     except PydanticValidationError as e:
-      raise ValidationError from e
+      raise ValidationError(*e.args) from e
     
   def __call__(self, data) -> T:
     if isinstance(data, str | bytes | bytearray):

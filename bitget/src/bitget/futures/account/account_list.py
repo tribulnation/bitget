@@ -2,7 +2,7 @@ from typing_extensions import Literal
 from dataclasses import dataclass
 from decimal import Decimal
 
-from bitget.core import ApiAuthMixin, response_validator, TypedDict
+from bitget.core import AuthEndpoint, validator, TypedDict
 from bitget.futures.core import ProductType
 
 class AccountAsset(TypedDict):
@@ -58,15 +58,15 @@ class Account(TypedDict):
     """Assets mode. `union` Multi-assets mode, `single` Single-assets mode"""
 
 
-validate_response = response_validator(list[Account])
+validate_response = validator(list[Account])
 
 @dataclass
-class AccountList(ApiAuthMixin):
+class AccountList(AuthEndpoint):
   async def account_list(
     self, product_type: ProductType, *,
     validate: bool | None = None
   ):
-    """Query the contract asset information of all sub-accounts. ND Brokers are not allowed to call this endpoint.
+    """Query all account information under a certain product type.
     
     - `product_type`: Product type.
     - `validate`: Whether to validate the response against the expected schema (default: True).

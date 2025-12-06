@@ -1,6 +1,4 @@
-from dataclasses import dataclass
-from .account_assets import AccountAssets
+from .assets import Assets
 
-@dataclass
-class Account(AccountAssets):
+class Account(Assets):
   ...

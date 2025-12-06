@@ -2,7 +2,7 @@ from typing_extensions import Literal
 from dataclasses import dataclass
 from decimal import Decimal
 
-from bitget.core import ApiAuthMixin, response_validator, TypedDict
+from bitget.core import AuthEndpoint, validator, TypedDict
 
 class Asset(TypedDict):
   coin: str
@@ -19,11 +19,11 @@ class Asset(TypedDict):
   """Update time(ms)"""
 
 
-validate_response = response_validator(list[Asset])
+validate_response = validator(list[Asset])
 
 @dataclass
-class AccountAssets(ApiAuthMixin):
-  async def account_assets(
+class Assets(AuthEndpoint):
+  async def assets(
     self, *, coin: str | None = None,
     asset_type: Literal['hold_only', 'all'] | None = None,
     validate: bool | None = None

@@ -4,8 +4,8 @@ from decimal import Decimal, ROUND_HALF_DOWN, ROUND_FLOOR
 
 class timestamp:
   @staticmethod
-  def parse(time: int) -> datetime:
-    return datetime.fromtimestamp(time/1e3)
+  def parse(time: int | str) -> datetime:
+    return datetime.fromtimestamp(int(time)/1e3)
   
   @staticmethod
   def dump(dt: datetime) -> int:

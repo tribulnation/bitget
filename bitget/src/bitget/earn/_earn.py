@@ -1,6 +1,5 @@
-from dataclasses import dataclass
+from bitget.core import AuthRouter
 from .account import Account
 
-@dataclass
-class Earn(Account):
-  ...
+class Earn(AuthRouter):
+  account: Account

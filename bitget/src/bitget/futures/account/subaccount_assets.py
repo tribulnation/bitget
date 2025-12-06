@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from bitget.core import ApiAuthMixin, response_validator, TypedDict
+from bitget.core import AuthEndpoint, validator, TypedDict
 from bitget.futures.core import ProductType
 
 class Asset(TypedDict):
@@ -19,10 +19,10 @@ class Asset(TypedDict):
   """Update time(ms)"""
 
 
-validate_response = response_validator(list[Asset])
+validate_response = validator(list[Asset])
 
 @dataclass
-class SubaccountAssets(ApiAuthMixin):
+class SubaccountAssets(AuthEndpoint):
   async def subaccount_assets(
     self, product_type: ProductType, *,
     validate: bool | None = None

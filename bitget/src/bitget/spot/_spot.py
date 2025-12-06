@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from bitget.core import AuthRouter
 from .account import Account
+from .trade import Trade
 
-@dataclass
-class Spot(Account):
-  ...
+class Spot(AuthRouter):
+  account: Account
+  trade: Trade

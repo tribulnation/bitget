@@ -2,7 +2,7 @@ from typing_extensions import Literal, NotRequired
 from dataclasses import dataclass
 from decimal import Decimal
 
-from bitget.core import ApiAuthMixin, response_validator, TypedDict
+from bitget.core import AuthEndpoint, validator, TypedDict
 from bitget.futures.core import ProductType
 
 class Position(TypedDict):
@@ -80,10 +80,10 @@ class Position(TypedDict):
     """Last updated time, timestamp, milliseconds"""
 
 
-validate_response = response_validator(list[Position])
+validate_response = validator(list[Position])
 
 @dataclass
-class AllPositions(ApiAuthMixin):
+class AllPositions(AuthEndpoint):
   async def all_positions(
     self, product_type: ProductType, *,
     margin_coin: str | None = None,

@@ -1,7 +1,7 @@
-from dataclasses import dataclass
+from bitget.core import AuthRouter
 from .account import Account
 from .position import Position
 
-@dataclass
-class Futures(Account, Position):
-  ...
+class Futures(AuthRouter):
+  account: Account
+  position: Position
