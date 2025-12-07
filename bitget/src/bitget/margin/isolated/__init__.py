@@ -1,2 +1,7 @@
-from ._isolated import Isolated
-from .account_assets import AccountAssets
+from bitget.core import AuthRouter
+from .account import Account
+from .trade import Trade
+
+class Isolated(AuthRouter):
+  account: Account
+  trade: Trade

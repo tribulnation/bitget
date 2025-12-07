@@ -1,2 +1,6 @@
-from ._account import Account
-from .account_assets import AccountAssets
+from .assets import Assets
+from .deposit_records import DepositRecords
+from .withdrawal_records import WithdrawalRecords
+
+class Account(Assets, DepositRecords, WithdrawalRecords):
+  ...

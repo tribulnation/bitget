@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from bitget.core import AuthEndpoint, validator, TypedDict, timestamp as ts, rate_limit
+from bitget.core import AuthEndpoint, validator, TypedDict, Timestamp, timestamp as ts, rate_limit
 
 class FeeDetail(TypedDict):
   deduction: Literal['yes', 'no']
@@ -21,8 +21,8 @@ class Fill(TypedDict):
   priceAvg: Decimal
   size: Decimal
   amount: Decimal
-  cTime: int
-  uTime: int
+  cTime: Timestamp
+  uTime: Timestamp
   tradeScope: Literal['maker', 'taker']
   feeDetail: FeeDetail
 

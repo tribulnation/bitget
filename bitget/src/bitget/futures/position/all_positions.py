@@ -2,7 +2,7 @@ from typing_extensions import Literal, NotRequired
 from dataclasses import dataclass
 from decimal import Decimal
 
-from bitget.core import AuthEndpoint, validator, TypedDict
+from bitget.core import AuthEndpoint, validator, TypedDict, Timestamp
 from bitget.futures.core import ProductType
 
 class Position(TypedDict):
@@ -68,7 +68,7 @@ class Position(TypedDict):
     """Stop loss order ID"""
     deductedFee: Decimal
     """Deducted transaction fees: transaction fees deducted during the position"""
-    cTime: int
+    cTime: Timestamp
     """Creation time, timestamp, milliseconds
     The set is in descending order from the latest time.
     """
@@ -76,7 +76,7 @@ class Position(TypedDict):
     """- single: single asset mode
     - union: multi-Assets mode
     """
-    uTime: int
+    uTime: Timestamp
     """Last updated time, timestamp, milliseconds"""
 
 

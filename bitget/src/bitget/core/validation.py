@@ -1,12 +1,15 @@
-from typing_extensions import TypeVar, Generic, Any, is_typeddict, TypedDict as _TypedDict
+from typing_extensions import TypeVar, Generic, Any, is_typeddict, TypedDict as _TypedDict, Annotated
 from dataclasses import dataclass, field, is_dataclass
 from pydantic import with_config, ConfigDict
+from datetime import datetime
 
 from .exc import ValidationError
 
-@with_config(ConfigDict(extra='allow'))
+@with_config(ConfigDict(extra='forbid'))
 class TypedDict(_TypedDict):
   ...
+
+Timestamp = datetime
 
 T = TypeVar('T')
 
@@ -16,7 +19,7 @@ class validator(Generic[T]):
     from pydantic import TypeAdapter, ConfigDict
     is_record = is_dataclass(Type) or is_typeddict(Type)
     if is_record and not hasattr(Type, '__pydantic_config__'):
-      setattr(Type, '__pydantic_config__', ConfigDict(extra='allow'))
+      setattr(Type, '__pydantic_config__', ConfigDict(extra='forbid'))
     self.adapter = TypeAdapter(Type)
     
   def json(self, data: str | bytes | bytearray) -> T:

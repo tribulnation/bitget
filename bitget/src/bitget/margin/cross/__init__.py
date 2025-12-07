@@ -1,2 +1,7 @@
-from ._cross import Cross
-from .account_assets import AccountAssets
+from bitget.core import AuthRouter
+from .account import Account
+from .trade import Trade
+
+class Cross(AuthRouter):
+  account: Account
+  trade: Trade

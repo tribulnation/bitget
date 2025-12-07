@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from bitget.core import AuthEndpoint, validator, TypedDict
+from bitget.core import AuthEndpoint, validator, TypedDict, Timestamp
 
 class Asset(TypedDict):
   coin: str
@@ -22,16 +22,16 @@ class Asset(TypedDict):
   """Net assets = available + frozen - borrow - interest. Liquidation is triggered when the risk ratio is reached 1."""
   coupon: Decimal
   """Trading bonus."""
-  cTime: int
+  cTime: Timestamp
   """Creation time."""
-  uTime: int
+  uTime: Timestamp
   """Update time."""
 
 validate_response = validator(list[Asset])
 
 @dataclass
-class AccountAssets(AuthEndpoint):
-  async def account_assets(
+class Assets(AuthEndpoint):
+  async def assets(
     self, *, symbol: str | None = None,
     validate: bool | None = None
   ):

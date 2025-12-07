@@ -2,7 +2,7 @@ from typing_extensions import Literal
 from dataclasses import dataclass
 from decimal import Decimal
 
-from bitget.core import AuthEndpoint, validator, TypedDict
+from bitget.core import AuthEndpoint, validator, TypedDict, Timestamp
 
 class Asset(TypedDict):
   coin: str
@@ -15,7 +15,7 @@ class Asset(TypedDict):
   """Amount of locked assets. Locked assests required to become a fiat merchants, etc."""
   limitAvailable: Decimal
   """Restricted availability. For spot copy trading"""
-  uTime: int
+  uTime: Timestamp
   """Update time(ms)"""
 
 
