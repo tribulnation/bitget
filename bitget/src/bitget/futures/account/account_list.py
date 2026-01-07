@@ -1,4 +1,4 @@
-from typing_extensions import Literal
+from typing_extensions import Literal, NotRequired
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -38,23 +38,23 @@ class Account(TypedDict):
     """Unrealized PnL"""
     coupon: Decimal
     """Trading bonus"""
-    unionTotalMargin: Decimal
+    unionTotalMargin: NotRequired[Decimal]
     """Multi-assets multi-assets mode"""
-    unionAvailable: Decimal
+    unionAvailable: NotRequired[Decimal]
     """Available under multi-assets mode"""
-    unionMm: Decimal
+    unionMm: NotRequired[Decimal]
     """Maintenance margin under multi-assets mode"""
-    assetList: list[AccountAsset]
+    assetList: NotRequired[list[AccountAsset]]
     """Assets list under multi-assets mode"""
-    isolatedMargin: Decimal
+    isolatedMargin: Decimal | Literal['']
     """Isolated Margin Occupied"""
-    crossedMargin: Decimal
+    crossedMargin: Decimal | Literal['']
     """Crossed Margin Occupied"""
-    crossedUnrealizedPL: Decimal
+    crossedUnrealizedPL: Decimal | Literal['']
     """unrealizedPL for crossed"""
-    isolatedUnrealizedPL: Decimal
+    isolatedUnrealizedPL: Decimal | Literal['']
     """unrealizedPL for isolated"""
-    assetMode: Literal['union', 'single']
+    assetMode: Literal['union', 'single', '']
     """Assets mode. `union` Multi-assets mode, `single` Single-assets mode"""
 
 

@@ -11,12 +11,12 @@ def rate_limit(max_freq: timedelta):
     async def wrapper(self, *args, **kwargs):
       nonlocal lasts
       key = str(id(self))
-      last = lasts[key]
-      delay = (max_freq - (datetime.now() - last)).total_seconds()
+      diff = datetime.now() - lasts[key]
+      delay = (max_freq - diff).total_seconds()
       if delay > 0:
         await asyncio.sleep(delay)
       r = await fn(self, *args, **kwargs)
-      last = datetime.now()
+      lasts[key] = datetime.now()
       return r
 
     return wrapper

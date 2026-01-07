@@ -1,15 +1,16 @@
 from typing_extensions import TypeVar, Generic, Any, is_typeddict, TypedDict as _TypedDict, Annotated
 from dataclasses import dataclass, field, is_dataclass
-from pydantic import with_config, ConfigDict
+from pydantic import with_config, ConfigDict, BeforeValidator
 from datetime import datetime
 
 from .exc import ValidationError
+from .util import timestamp as ts
 
-@with_config(ConfigDict(extra='forbid'))
+@with_config(ConfigDict(extra='allow'))
 class TypedDict(_TypedDict):
   ...
 
-Timestamp = datetime
+Timestamp = Annotated[datetime, BeforeValidator(ts.parse)]
 
 T = TypeVar('T')
 

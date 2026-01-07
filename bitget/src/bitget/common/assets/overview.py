@@ -13,8 +13,8 @@ class AssetOverview(TypedDict):
 validate_response = validator(list[AssetOverview])
 
 @dataclass
-class AssetsOverview(AuthEndpoint):
-  async def assets_overview(self, *, validate: bool | None = None):
+class Overview(AuthEndpoint):
+  async def overview(self, *, validate: bool | None = None):
     """Assets overview
     
     - `validate`: Whether to validate the response against the expected schema (default: True).

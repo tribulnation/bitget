@@ -1,13 +1,6 @@
 from typing_extensions import Any, Mapping
 from dataclasses import dataclass, field
 import asyncio
-from functools import wraps
-import httpx
-
-from ..exc import UserError, NetworkError
-
-from typing_extensions import Mapping, Any
-import asyncio
 import httpx
 
 from ..exc import NetworkError
@@ -36,6 +29,7 @@ class HttpClient:
     if not self.lock.locked():
       async with self.lock:
         await client.__aexit__(exc_type, exc_value, traceback)
+        self.client_future = asyncio.Future()
 
   async def request(
     self, method: str, url: str,

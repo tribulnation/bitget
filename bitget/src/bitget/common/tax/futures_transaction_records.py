@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from datetime import datetime, timedelta
 
-from bitget.core import AuthEndpoint, validator, TypedDict, timestamp as ts, rate_limit
+from bitget.core import AuthEndpoint, validator, TypedDict, timestamp as ts, rate_limit, Timestamp
 
 ProductType = Literal['USDT-FUTURES', 'USDC-FUTURES', 'COIN-FUTURES']
 
@@ -14,7 +14,7 @@ class FuturesTransaction(TypedDict):
   futureTaxType: str
   amount: Decimal
   fee: Decimal
-  ts: int
+  ts: Timestamp
 
 validate_response = validator(list[FuturesTransaction])
 
@@ -91,6 +91,7 @@ class FuturesTransactionRecords(AuthEndpoint):
         yield chunk
       
       if len(data) == limit:
-        start = ts.parse(data[-1]['ts'])
+        t = data[-1]['ts']
+        start = t if self.validate(validate) else ts.parse(int(t)) # type: ignore
       else:
         start += interval

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from datetime import datetime, timedelta
 
-from bitget.core import AuthEndpoint, validator, TypedDict, timestamp as ts, rate_limit
+from bitget.core import AuthEndpoint, validator, TypedDict, timestamp as ts, rate_limit, Timestamp
 
 class SpotTransaction(TypedDict):
   id: str
@@ -12,7 +12,7 @@ class SpotTransaction(TypedDict):
   amount: Decimal
   fee: Decimal
   balance: Decimal
-  ts: int
+  ts: Timestamp
   bizOrderId: str
   
 validate_response = validator(list[SpotTransaction])
@@ -81,6 +81,7 @@ class SpotTransactionRecords(AuthEndpoint):
         yield chunk
       
       if len(data) == limit:
-        start = ts.parse(data[-1]['ts'])
+        t = data[-1]['ts']
+        start = t if self.validate(validate) else ts.parse(int(t)) # type: ignore
       else:
         start += interval

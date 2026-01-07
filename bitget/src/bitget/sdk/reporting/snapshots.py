@@ -5,17 +5,20 @@ from collections import Counter
 from datetime import datetime
 import asyncio
 
-from trading_sdk.reporting import Snapshot, Snapshots as SnapshotsTDK
+from trading_sdk.reporting import (
+  Snapshot, Snapshots as SnapshotsTDK,
+  CurrencySnapshot, FutureSnapshot, StrategySnapshot
+)
 
 from bitget import Bitget
 from bitget.sdk.core import SdkMixin
 
 async def spot_balances(client: Bitget) -> Counter:
   balances = await client.spot.account.assets()
-  return Counter({
-    balance['coin']: balance['available'] + balance['frozen'] + balance['locked']
-    for balance in balances
-  })
+  counter = Counter()
+  for balance in balances:
+    counter[balance['coin']] += balance['available'] + balance['frozen'] + balance['locked'] # type: ignore
+  return counter
 
 async def futures_balances(client: Bitget) -> Counter:
   balances = Counter()
@@ -49,38 +52,43 @@ async def futures_positions(client: Bitget) -> dict[str, Position]:
 
 async def earn_balances(client: Bitget) -> Counter:
   balances = await client.earn.account.assets()
-  return Counter({
-    balance['coin']: balance['amount']
-    for balance in balances
-  })
+  counter = Counter()
+  for balance in balances:
+    counter[balance['coin']] += balance['amount'] # type: ignore
+  return counter
 
 async def cross_margin_balances(client: Bitget) -> Counter:
-  balances = await client.margin.cross.account_assets()
-  return Counter({
-    balance['coin']: balance['net']
-    for balance in balances
-  })
+  balances = await client.margin.cross.account.assets()
+  counter = Counter()
+  for balance in balances:
+    counter[balance['coin']] += balance['net'] # type: ignore
+  return counter
 
 async def isolated_margin_balances(client: Bitget) -> Counter:
-  balances = await client.margin.isolated.account_assets()
-  return Counter({
-    balance['coin']: balance['net']
-    for balance in balances
-  })
+  balances = await client.margin.isolated.account.assets()
+  counter = Counter()
+  for balance in balances:
+    counter[balance['coin']] += balance['net'] # type: ignore
+  return counter
 
 async def bot_balances(client: Bitget) -> Counter:
-  balances = await client.common.bot_assets()
-  return Counter({
-    balance['coin']: balance['equity']
-    for balance in balances
-  })
+  counter = Counter()
+  for account_type in ('spot', 'futures'):
+    balances = await client.common.assets.bot(account_type)
+    for balance in balances:
+      if balance['equity']:
+        total = balance['equity']
+      else:
+        total = balance['available'] + (balance['frozen'] or 0)
+      counter[balance['coin']] += total # type: ignore
+  return counter
 
 async def funding_balances(client: Bitget) -> Counter:
-  balances = await client.common.funding_assets()
-  return Counter({
-    balance['coin']: balance['available'] + balance['frozen']
-    for balance in balances
-  })
+  balances = await client.common.assets.funding()
+  counter = Counter()
+  for balance in balances:
+    counter[balance['coin']] += balance['available'] + balance['frozen'] # type: ignore
+  return counter
 
 balance_functions = [
   spot_balances,
@@ -88,7 +96,6 @@ balance_functions = [
   earn_balances,
   cross_margin_balances,
   isolated_margin_balances,
-  bot_balances,
   funding_balances,
 ]
 
@@ -96,20 +103,43 @@ async def all_balances(client: Bitget) -> Counter:
   balances = await asyncio.gather(*[fn(client) for fn in balance_functions])
   return sum(balances, start=Counter())
 
-@dataclass
+@dataclass(kw_only=True)
 class Snapshots(SdkMixin, SnapshotsTDK):
+  """Bitget Snapshots
+  
+  **Does not support**:
+  - P2P trading
+  - Copy trading
+  """
+  raise_if_copy: bool = True
+  """Raise an error if copy trading is detected (since it cannot be reflected in the balances, thus yielding incorrect results)"""
+
   async def snapshots(self, assets: Sequence[str] = []) -> Sequence[Snapshot]:
-    async with self.client:
-      positions, balances = await asyncio.gather(
-        futures_positions(self.client),
-        all_balances(self.client),
+
+    if self.raise_if_copy:
+      future_copy, spot_copy = await asyncio.gather(
+        self.client.copy.futures.follower.my_traders(),
+        self.client.copy.spot.follower.my_traders(),
       )
+      spot_copy = spot_copy['resultList']
+      if len(future_copy) > 0 or len(spot_copy) > 0:
+        raise ValueError(f'{len(future_copy)} future copy traders and {len(spot_copy)} spot copy traders detected. Use with `raise_if_copy=False` to suppress this error at your own peril.')
+
+
+    positions, balances, bot_assets = await asyncio.gather(
+      futures_positions(self.client),
+      all_balances(self.client),
+      bot_balances(self.client),
+    )
     
     time = datetime.now()
     return [
-      Snapshot(asset=asset, time=time, qty=qty) # type: ignore
+      CurrencySnapshot(asset=asset, time=time, qty=Decimal(qty))
       for asset, qty in balances.items()
     ] + [
-      Snapshot(asset=asset, time=time, qty=p.size, avg_price=p.entry)
+      FutureSnapshot(asset=asset, time=time, qty=p.size, avg_price=p.entry)
       for asset, p in positions.items()
+    ] + [
+      StrategySnapshot(asset=f'BOT-{asset}', time=time, qty=Decimal(qty))
+      for asset, qty in bot_assets.items()
     ]

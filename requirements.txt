@@ -7,3 +7,11 @@ websockets
 pydantic
 python-dotenv
 -e bitget
+cloudscraper
+html-to-markdown
+bs4
+pandas
+numpy
+plotly
+matplotlib
+duckdb

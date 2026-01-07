@@ -55,7 +55,7 @@ class Position(TypedDict):
     """Maintenance margin rate (MMR), 0.1 represents 10%"""
     breakEvenPrice: Decimal
     """Position breakeven price"""
-    totalFee: Decimal
+    totalFee: Decimal | Literal['']
     """Funding fee, the accumulated value of funding fee during the position.
     The initial value is empty, indicating that no funding fee has been charged yet."""
     takeProfit: Decimal | Literal['']

@@ -53,7 +53,7 @@ class AuthHttpClient(HttpClient):
     query = '?' + query_string(params) if params else ''
     path = urlparse(url).path
     ts = timestamp.now()
-    body = orjson.dumps(json) if json else b''
+    body = orjson.dumps(json) if json is not None else b''
     prehash = payload(timestamp=ts, method=method, path=path, query=query, body=body)
     signature = sign(prehash, secret=self.secret_key)
     new_headers = {

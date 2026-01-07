@@ -14,8 +14,8 @@ class Asset(TypedDict):
 validate_response = validator(list[Asset])
 
 @dataclass
-class FundingAssets(AuthEndpoint):
-  async def funding_assets(self, coin: str | None = None, *, validate: bool | None = None):
+class Funding(AuthEndpoint):
+  async def funding(self, coin: str | None = None, *, validate: bool | None = None):
     """Funding assets
     
     - `coin`: Filter by coin, e.g. USDT.
