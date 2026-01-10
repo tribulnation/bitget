@@ -87,3 +87,31 @@ class DepositRecords(AuthEndpoint):
     r = await self.authed_request('GET', '/api/v2/spot/wallet/deposit-records', params=params)
     return self.output(r.text, validate_response, validate=validate)
 
+
+  async def deposit_records_paged(
+    self,
+    start: datetime,
+    end: datetime,
+    *,
+    coin: str | None = None,
+    limit: int | None = None,
+    validate: bool | None = None
+  ):
+    """Deposit Records, automatically paginated.
+    
+    - `start`: The record start time for the query. Unix millisecond timestamp, e.g. 1690196141868
+    - `end`: The end time of the record for the query. Unix millisecond timestamp, e.g. 1690196141868
+    - `coin`: Coin name, e.g. USDT
+    - `limit`: Number of entries per page - The default value is 20 and the maximum value is 100
+    - `validate`: Whether to validate the response against the expected schema (default: True).
+
+    > [Bitget API docs](https://www.bitget.com/api-doc/spot/account/Get-Deposit-Record)
+    """
+    last_id: str | None = None
+    while True:
+      chunk = await self.deposit_records(start, end, coin=coin, limit=limit, validate=validate, id_less_than=last_id)
+      if chunk:
+        last_id = chunk[-1]['orderId']
+        yield chunk
+      else:
+        break

@@ -75,22 +75,11 @@ class MarginTransactionRecords(AuthEndpoint):
 
     > [Bitget API docs](https://www.bitget.com/api-doc/common/tax/Get-Margin-Account-Record)
     """
-    ids = set[str]()
+    last_id: str | None = None
     while start < end:
-      data = await self.margin_transaction_records(
-        margin_type=margin_type, coin=coin,
-        start=start, end=start+interval, limit=limit, validate=validate,
-      )
-      chunk: list[MarginTransaction] = []
-      for tx in data:
-        if tx['id'] not in ids:
-          ids.add(tx['id'])
-          chunk.append(tx)
+      chunk = await self.margin_transaction_records(margin_type, coin=coin, start=start, end=start+interval, limit=limit, validate=validate, id_less_than=last_id)
       if chunk:
+        last_id = chunk[-1]['id']
         yield chunk
-      
-      if len(data) == limit:
-        t = data[-1]['ts']
-        start = t if self.validate(validate) else ts.parse(int(t)) # type: ignore
       else:
         start += interval
