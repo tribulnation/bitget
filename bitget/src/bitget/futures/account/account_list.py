@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from bitget.core import AuthEndpoint, validator, TypedDict
-from bitget.futures.core import ProductType
 
 class AccountAsset(TypedDict):
   coin: str
@@ -63,7 +62,7 @@ validate_response = validator(list[Account])
 @dataclass
 class AccountList(AuthEndpoint):
   async def account_list(
-    self, product_type: ProductType, *,
+    self, product_type: Literal['USDT-FUTURES', 'COIN-FUTURES', 'USDC-FUTURES'], *,
     validate: bool | None = None
   ):
     """Query all account information under a certain product type.

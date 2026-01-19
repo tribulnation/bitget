@@ -1,8 +1,8 @@
+from typing_extensions import Literal
 from dataclasses import dataclass
 from decimal import Decimal
 
 from bitget.core import AuthEndpoint, validator, TypedDict, Timestamp
-from bitget.futures.core import ProductType
 
 class Asset(TypedDict):
   coin: str
@@ -24,7 +24,7 @@ validate_response = validator(list[Asset])
 @dataclass
 class SubaccountAssets(AuthEndpoint):
   async def subaccount_assets(
-    self, product_type: ProductType, *,
+    self, product_type: Literal['USDT-FUTURES', 'COIN-FUTURES', 'USDC-FUTURES'], *,
     validate: bool | None = None
   ):
     """Query the contract asset information of all sub-accounts. ND Brokers are not allowed to call this endpoint.

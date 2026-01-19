@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from bitget.core import AuthEndpoint, validator, TypedDict, Timestamp
-from bitget.futures.core import ProductType
 
 class Position(TypedDict):
     symbol: str
@@ -85,7 +84,7 @@ validate_response = validator(list[Position])
 @dataclass
 class AllPositions(AuthEndpoint):
   async def all_positions(
-    self, product_type: ProductType, *,
+    self, product_type: Literal['USDT-FUTURES', 'COIN-FUTURES', 'USDC-FUTURES'], *,
     margin_coin: str | None = None,
     validate: bool | None = None
   ):

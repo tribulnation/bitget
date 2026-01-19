@@ -9,16 +9,14 @@ from bitget.core import (
   validator, TypedDict, Timestamp
 )
 
-# RESPONSE MODELS
-
 class FeeDetail(TypedDict):
   deduction: str
   """Whether or not to deduct (vouchers)"""
   feeCoin: str
   """Crypto ticker"""
-  totalDeductionFee: Decimal
+  totalDeductionFee: Decimal | None | Literal['']
   """Total transaction fee discount"""
-  totalFee: Decimal
+  totalFee: Decimal | None | Literal['']
   """Total transaction fee"""
 
 class Fill(TypedDict):
@@ -62,6 +60,24 @@ class Fill(TypedDict):
   """Trader tag - taker: Taker - maker: Maker"""
   cTime: Timestamp
   """Date of transaction"""
+
+def fill_direction(fill: Fill) -> Literal['BUY', 'SELL']:
+  """Interpret the direction of a fill (which isn't a priori obvious).
+  Returns:
+    - `BUY` = open long OR close short
+    - `SELL` = open short OR close long
+  """
+  side, trade_side = fill['side'], fill['tradeSide']
+  if 'close_long' in trade_side:
+    return 'SELL'
+  if 'close_short' in trade_side:
+    return 'BUY'
+  if trade_side == 'open':
+    return 'BUY' if side == 'buy' else 'SELL'
+  if trade_side == 'close':
+    return 'SELL' if side == 'buy' else 'BUY'
+
+  raise ValueError(f"Unknown fill direction for fill: {fill}")
 
 class FillsResponse(TypedDict):
   fillList: list[Fill]
@@ -124,3 +140,51 @@ class Fills(AuthEndpoint):
     r = await self.authed_request('GET', '/api/v2/mix/order/fills', params=params)
     return self.output(r.text, validate_response, validate=validate)
 
+  async def fills_paged(
+    self, product_type: Literal['USDT-FUTURES', 'COIN-FUTURES', 'USDC-FUTURES'],
+    *, symbol: str | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int | None = None,
+    validate: bool | None = None
+  ):
+    """Get Order Fill Details, automatically paginated.
+    
+    - `product_type`: Product type - `USDT-FUTURES` USDT-M Futures - `COIN-FUTURES` Coin-M Futures - `USDC-FUTURES` USDC-M Futures
+    - `symbol`: Trading pair, e.g. ETHUSDT
+    - `start`: Start time (time stamp in milliseconds) - (The maximum time span supported is three months. The default end time is three months if no value is set for the end time. ) - (For Managed Sub-Account, the StartTime cannot be earlier than the binding time)
+    - `end`: End time (time stamp in milliseconds) - (The maximum time span supported is three months. The default start time is three months ago if no value is set for the start time. )
+    - `limit`: Number of queries: Default: 100, maximum: 100
+    - `validate`: Whether to validate the response against the expected schema (default: True).
+
+    > [Bitget API docs](https://www.bitget.com/api-doc/contract/trade/Get-Order-Fills)
+    """
+    last_id: str | None = None
+    while True:
+      r = await self.fills(product_type, symbol=symbol, start=start, end=end, limit=limit, validate=validate, id_less_than=last_id)
+      chunk = r['fillList']
+      if chunk:
+        last_id = r['endId']
+        yield chunk
+      else:
+        break
+
+    
+  async def all_fills_paged(
+    self, *, start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int | None = None,
+    validate: bool | None = None
+  ):
+    """Get Order Fill Details, automatically paginated, for all product types.
+    
+    - `start`: Start time (time stamp in milliseconds) - (The maximum time span supported is three months. The default end time is three months if no value is set for the end time. ) - (For Managed Sub-Account, the StartTime cannot be earlier than the binding time)
+    - `end`: End time (time stamp in milliseconds) - (The maximum time span supported is three months. The default start time is three months ago if no value is set for the start time. )
+    - `limit`: Number of queries: Default: 100, maximum: 100
+    - `validate`: Whether to validate the response against the expected schema (default: True).
+
+    > [Bitget API docs](https://www.bitget.com/api-doc/contract/trade/Get-Order-Fills)
+    """
+    for product_type in ('USDT-FUTURES', 'COIN-FUTURES', 'USDC-FUTURES'):
+      async for chunk in self.fills_paged(product_type, start=start, end=end, limit=limit, validate=validate):
+        yield chunk

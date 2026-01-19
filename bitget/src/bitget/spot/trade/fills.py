@@ -66,3 +66,29 @@ class Fills(AuthEndpoint):
       params['idLessThan'] = id_less_than
     r = await self.authed_request('GET', '/api/v2/spot/trade/fills', params=params)
     return self.output(r.text, validate_response, validate=validate)
+
+  
+  async def fills_paged(
+    self, *, symbol: str | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int | None = None,
+    validate: bool | None = None
+  ):
+    """Get Fills, automatically paginated. (It only supports to get the data within 90days.The older data can be downloaded from web)
+    
+    - `symbol`: Symbol filter, e.g. BTCUSDT.
+    - `start`, `end`: Time range filter. Difference between them must be at most 90 days.
+    - `limit`: Number of records to return (default: 100, max: 100).
+    - `validate`: Whether to validate the response against the expected schema (default: True).
+
+    > [Bitget API docs](https://www.bitget.com/api-doc/spot/trade/Get-Fills)
+    """
+    last_id: str | None = None
+    while True:
+      chunk = await self.fills(symbol=symbol, start=start, end=end, limit=limit, validate=validate, id_less_than=last_id)
+      if chunk:
+        last_id = chunk[-1]['orderId']
+        yield chunk
+      else:
+        break

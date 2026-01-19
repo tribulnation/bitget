@@ -39,34 +39,32 @@ class Fill(TypedDict):
   feeDetail: FeeDetail
   """Transaction fee details"""
 
-class CrossOrderFillsData(TypedDict):
+class Response(TypedDict):
   fills: list[Fill]
   maxId: str | None
   minId: str | None
 
-validate_response = validator(CrossOrderFillsData)
+validate_response = validator(Response)
 
 @dataclass
 class Fills(AuthEndpoint):
   @rate_limit(timedelta(seconds=0.1))
   async def fills(
-    self,
-    symbol: str,
-    start_time: datetime,
+    self, symbol: str,
     *,
+    start: datetime, end: datetime | None = None,
     order_id: str | None = None,
     id_less_than: str | None = None,
-    end_time: datetime | None = None,
     limit: int | None = None,
     validate: bool | None = None
   ):
     """Get Cross Order Fills
     
     - `symbol`: Trading pairs, like BTCUSDT
-    - `start_time`: Start time, Unix millisecond timestamp
+    - `start`: Start time, Unix millisecond timestamp
+    - `end`: End time, Unix millisecond timestamp. Maximum interval between start time and end time is 90 days
     - `order_id`: Order ID
     - `id_less_than`: Match order ID, relative parameters of turning pages. The first query is not passed. When querying data in the second page and the data beyond, the last fillId returned in the last query is used, and the result will return data with a value less than this one; the query response time will be shortened.
-    - `end_time`: End time, Unix millisecond timestamp. Maximum interval between start time and end time is 90 days
     - `limit`: Number of queries. Default: 100, maximum: 500
     - `validate`: Whether to validate the response against the expected schema (default: True).
 
@@ -74,17 +72,45 @@ class Fills(AuthEndpoint):
     """
     params = {}
     params['symbol'] = symbol
-    params['startTime'] = ts.dump(start_time)
+    params['startTime'] = ts.dump(start)
     
     if order_id is not None:
       params['orderId'] = order_id
     if id_less_than is not None:
       params['idLessThan'] = id_less_than
-    if end_time is not None:
-      params['endTime'] = ts.dump(end_time)
+    if end is not None:
+      params['endTime'] = ts.dump(end)
     if limit is not None:
       params['limit'] = limit
       
     r = await self.authed_request('GET', '/api/v2/margin/crossed/fills', params=params)
     return self.output(r.text, validate_response, validate=validate)
 
+
+  async def fills_paged(
+    self, symbol: str,
+    *,
+    start: datetime, end: datetime | None = None,
+    limit: int | None = None,
+    validate: bool | None = None
+  ):
+    """Get Cross Order Fills, automatically paginated.
+    
+    - `symbol`: Trading pairs, like BTCUSDT
+    - `start`: Start time, Unix millisecond timestamp
+    - `end`: End time, Unix millisecond timestamp. Maximum interval between start time and end time is 90 days
+    - `order_id`: Order ID
+    - `id_less_than`: Match order ID, relative parameters of turning pages. The first query is not passed. When querying data in the second page and the data beyond, the last fillId returned in the last query is used, and the result will return data with a value less than this one; the query response time will be shortened.
+    - `limit`: Number of queries. Default: 100, maximum: 500
+    - `validate`: Whether to validate the response against the expected schema (default: True).
+
+    > [Bitget API docs](https://www.bitget.com/api-doc/margin/cross/trade/Get-Cross-Order-Fills)
+    """
+    last_id: str | None = None
+    while True:
+      r = await self.fills(symbol=symbol, start=start, end=end, limit=limit, validate=validate, id_less_than=last_id)
+      chunk = r['fills']
+      if chunk and (last_id := r.get('minId')) is not None:
+        yield chunk
+      else:
+        break

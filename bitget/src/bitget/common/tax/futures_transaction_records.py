@@ -22,9 +22,10 @@ validate_response = validator(list[FuturesTransaction])
 class FuturesTransactionRecords(AuthEndpoint):
   @rate_limit(timedelta(seconds=1))
   async def futures_transaction_records(
-    self, *, product_type: ProductType | None = None,
+    self, start: datetime, end: datetime,
+    *,
+    product_type: ProductType | None = None,
     margin_coin: str | None = None,
-    start: datetime, end: datetime,
     limit: int | None = None,
     id_less_than: str | None = None,
     validate: bool | None = None
@@ -58,9 +59,10 @@ class FuturesTransactionRecords(AuthEndpoint):
 
   
   async def futures_transaction_records_paged(
-    self, *, product_type: ProductType | None = None,
+    self, start: datetime, end: datetime,
+    *,
+    product_type: ProductType | None = None,
     margin_coin: str | None = None,
-    start: datetime, end: datetime,
     limit: int = 500,
     interval: timedelta = timedelta(days=30),
     validate: bool | None = None
@@ -78,7 +80,7 @@ class FuturesTransactionRecords(AuthEndpoint):
     """
     last_id: str | None = None
     while start < end:
-      chunk = await self.futures_transaction_records(product_type=product_type, margin_coin=margin_coin, start=start, end=start+interval, limit=limit, validate=validate, id_less_than=last_id)
+      chunk = await self.futures_transaction_records(start, start+interval, product_type=product_type, margin_coin=margin_coin, limit=limit, validate=validate, id_less_than=last_id)
       if chunk:
         last_id = chunk[-1]['id']
         yield chunk

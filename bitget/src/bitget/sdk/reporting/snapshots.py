@@ -7,7 +7,6 @@ import asyncio
 
 from trading_sdk.reporting import (
   Snapshot, Snapshots as SnapshotsTDK,
-  CurrencySnapshot, FutureSnapshot, StrategySnapshot
 )
 
 from bitget import Bitget
@@ -134,12 +133,12 @@ class Snapshots(SdkMixin, SnapshotsTDK):
     
     time = datetime.now()
     return [
-      CurrencySnapshot(asset=asset, time=time, qty=Decimal(qty))
+      Snapshot(asset=asset, time=time, qty=Decimal(qty), kind='currency')
       for asset, qty in balances.items()
     ] + [
-      FutureSnapshot(asset=asset, time=time, qty=p.size, avg_price=p.entry)
+      Snapshot(asset=asset, time=time, qty=p.size, avg_price=p.entry, kind='future')
       for asset, p in positions.items()
     ] + [
-      StrategySnapshot(asset=f'BOT-{asset}', time=time, qty=Decimal(qty))
+      Snapshot(asset=f'BOT-{asset}', time=time, qty=Decimal(qty), kind='strategy')
       for asset, qty in bot_assets.items()
     ]
