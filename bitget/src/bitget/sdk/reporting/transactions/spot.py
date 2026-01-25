@@ -3,13 +3,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from trading_sdk.util import Stream, ChunkedStream
 from trading_sdk.reporting.transactions import (
-  Posting, SinglePostingOperation,match_transactions,
+  Flow, SingleEvent, match_transactions,
   Transaction, Trade, CryptoDeposit, CryptoWithdrawal, Fee
 )
 from bitget import Bitget
 from bitget.spot.market.symbols import Symbol
 
-DEFAULT_TRANSACTION_TYPES: dict[str, Posting.Type] = {
+DEFAULT_TRANSACTION_TYPES: dict[str, Flow.Label] = {
   'Buy': 'trade',
   'Sell': 'trade',
   'Deposit': 'crypto_deposit',
@@ -19,8 +19,8 @@ DEFAULT_TRANSACTION_TYPES: dict[str, Posting.Type] = {
   'Interest': 'yield',
   '': 'other',
   'Rebate rewards': 'other',
-  'Automatic deposit': 'strategy_deposit',
-  'Automatic withdrawal': 'strategy_withdrawal',
+  'Automatic deposit': 'strategy_withdrawal', # deposit from strategy, i.e. withdrawal from strategy
+  'Automatic withdrawal': 'strategy_deposit', # withdrawal from account, i.e. deposit to strategy - they got it backwards
   'Crypto Voucher Distribution': 'bonus',
 
   'Transfer out': 'internal_transfer',
@@ -37,7 +37,7 @@ DEFAULT_IGNORE_TYPES: set[str] = {
 @dataclass
 class SpotTransactions:
   client: Bitget
-  transaction_types: dict[str, Posting.Type] = field(kw_only=True, default_factory=lambda: DEFAULT_TRANSACTION_TYPES)
+  transaction_types: dict[str, Flow.Label] = field(kw_only=True, default_factory=lambda: DEFAULT_TRANSACTION_TYPES)
   ignore_types: set[str] = field(kw_only=True, default_factory=lambda: DEFAULT_IGNORE_TYPES)
   unkwown_types_as_other: bool = field(kw_only=True, default=True)
   symbols: dict[str, Symbol] | None = field(kw_only=True, default=None)
@@ -48,7 +48,7 @@ class SpotTransactions:
       self.symbols = {s['symbol']: s for s in await self.client.spot.market.symbols()}
     return self.symbols
 
-  def transaction_type(self, type: str) -> Posting.Type | None:
+  def transaction_type(self, type: str) -> Flow.Label | None:
     if type not in self.ignore_types:
       if type not in self.transaction_types:
         if self.unkwown_types_as_other:
@@ -57,7 +57,7 @@ class SpotTransactions:
           raise ValueError(f"Unknown transaction type: {type}. Set `unkwown_types_as_other` to `True` to treat unknown types as `other`, or set `transactio_types`/`ignore_types`.")
       return self.transaction_types[type]
 
-  def fee_type(self, type: Posting.Type | None) -> Posting.Type:
+  def fee_type(self, type: Flow.Label | None) -> Flow.Label:
     match type:
       case 'crypto_withdrawal' | 'fiat_withdrawal':
         return 'withdrawal_fee'
@@ -65,20 +65,20 @@ class SpotTransactions:
         return 'fee'
 
   @Stream.lift
-  async def postings(self, start: datetime, end: datetime):
+  async def flows(self, start: datetime, end: datetime):
     async for chunk in self.client.common.tax.spot_transaction_records_paged(start=start, end=end):
       for tx in chunk:
         if (type := self.transaction_type(tx['spotTaxType'])) is not None:
-          yield Posting(
+          yield Flow(
             asset=tx['coin'], change=tx['amount'],
             kind='currency', time=tx['ts'], details=tx,
-            type=type,
+            label=type,
           )
         if (fee := abs(tx['fee'])) > 0:
-          yield Posting(
+          yield Flow(
             asset=tx['coin'], change=-fee,
             kind='currency', time=tx['ts'],
-            details=tx, type=self.fee_type(type),
+            details=tx, label=self.fee_type(type),
           )
 
   @Stream.lift
@@ -95,8 +95,8 @@ class SpotTransactions:
           time=fill['cTime'],
           base=base, quote=quote,
           qty=fill['size'], price=fill['priceAvg'],
-          liquidity='TAKER' if fill['tradeScope'] == 'taker' else 'MAKER',
-          side='BUY' if fill['side'] == 'buy' else 'SELL',
+          liquidity=fill['tradeScope'],
+          side=fill['side'],
           details=fill,
           fee=fee,
         )
@@ -139,17 +139,12 @@ class SpotTransactions:
 
   @ChunkedStream.lift
   async def __call__(self, start: datetime, end: datetime) -> AsyncIterable[list[Transaction]]:
-    postings = await self.postings(start, end)
+    flows = await self.flows(start, end)
     trades = await self.trades(start, end)
     deposits = await self.deposits(start, end)
     withdrawals = await self.withdrawals(start, end)
     operations = list(trades) + list(deposits) + list(withdrawals)
 
-    matched_txs, other_postings = match_transactions(postings, operations)
+    matched_txs, other_flows = match_transactions(flows, operations)
     yield matched_txs
-    yield [
-      Transaction(
-        operation=SinglePostingOperation.of(posting.details['id'], posting),
-        postings=[posting],
-      ) for posting in other_postings
-    ]
+    yield [Transaction.single(flow.details['id'], flow) for flow in other_flows]

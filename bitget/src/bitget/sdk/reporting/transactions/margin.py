@@ -4,13 +4,13 @@ from datetime import datetime
 import warnings
 from trading_sdk.util import Stream, ChunkedStream
 from trading_sdk.reporting.transactions import (
-  Posting, SinglePostingOperation,match_transactions,
+  Flow, SingleEvent, match_transactions,
   Transaction, Trade, Fee
 )
 from bitget import Bitget
 from bitget.spot.market.symbols import Symbol
 
-DEFAULT_TRANSACTION_TYPES: dict[str, Posting.Type] = {
+DEFAULT_TRANSACTION_TYPES: dict[str, Flow.Label] = {
   'margin_coupon_profit': 'bonus',
   'deal_in': 'trade',
   'deal_out': 'trade',
@@ -22,7 +22,7 @@ DEFAULT_IGNORE_TYPES: set[str] = set()
 @dataclass
 class MarginTransactions:
   client: Bitget
-  transaction_types: dict[str, Posting.Type] = field(kw_only=True, default_factory=lambda: DEFAULT_TRANSACTION_TYPES)
+  transaction_types: dict[str, Flow.Label] = field(kw_only=True, default_factory=lambda: DEFAULT_TRANSACTION_TYPES)
   ignore_types: set[str] = field(kw_only=True, default_factory=lambda: DEFAULT_IGNORE_TYPES)
   unkwown_types_as_other: bool = field(kw_only=True, default=True)
   symbols: dict[str, Symbol] | None = field(kw_only=True, default=None)
@@ -33,7 +33,7 @@ class MarginTransactions:
       self.symbols = {s['symbol']: s for s in await self.client.spot.market.symbols()}
     return self.symbols
 
-  def transaction_type(self, type: str) -> Posting.Type | None:
+  def transaction_type(self, type: str) -> Flow.Label | None:
     if type not in self.ignore_types:
       if type not in self.transaction_types:
         if self.unkwown_types_as_other:
@@ -43,20 +43,20 @@ class MarginTransactions:
       return self.transaction_types[type]
 
   @Stream.lift
-  async def postings(self, margin_type: Literal['isolated', 'crossed'], start: datetime, end: datetime):
+  async def flows(self, margin_type: Literal['isolated', 'crossed'], start: datetime, end: datetime):
     async for chunk in self.client.common.tax.margin_transaction_records_paged(margin_type, start=start, end=end):
       for tx in chunk:
         if (type := self.transaction_type(tx['marginTaxType'])) is not None:
-          yield Posting(
+          yield Flow(
             asset=tx['coin'], change=tx['amount'],
             kind='currency', time=tx['ts'], details=tx,
-            type=type,
+            label=type,
           )
         if (fee := abs(tx['fee'])) > 0:
-          yield Posting(
+          yield Flow(
             asset=tx['coin'], change=-fee,
             kind='currency', time=tx['ts'],
-            details=tx, type='fee',
+            details=tx, label='fee',
           )
 
   @Stream.lift
@@ -78,8 +78,8 @@ class MarginTransactions:
             time=fill['cTime'],
             base=base, quote=quote,
             qty=fill['size'], price=fill['priceAvg'],
-            liquidity='TAKER' if fill['tradeScope'] == 'taker' else 'MAKER',
-            side='BUY' if fill['side'] == 'buy' else 'SELL',
+            liquidity=fill['tradeScope'],
+            side='buy' if 'buy' in fill['side'] else 'sell',
             details=fill,
             fee=fee,
           )
@@ -87,14 +87,9 @@ class MarginTransactions:
   @ChunkedStream.lift
   async def __call__(self, start: datetime, end: datetime) -> AsyncIterable[list[Transaction]]:
     for margin_type in ('crossed', 'isolated'):
-      postings = await self.postings(margin_type, start, end)
-      symbols = set(p.details['symbol'] for p in postings if p.details['symbol'])
+      flows = await self.flows(margin_type, start, end)
+      symbols = set(f.details['symbol'] for f in flows if f.details['symbol'])
       trades = await self.trades(margin_type, symbols, start, end)
-      matched_txs, other_postings = match_transactions(postings, trades)
+      matched_txs, other_flows = match_transactions(flows, trades)
       yield matched_txs
-      yield [
-        Transaction(
-          operation=SinglePostingOperation.of(posting.details['id'], posting),
-          postings=[posting],
-        ) for posting in other_postings
-      ]
+      yield [Transaction.single(flow.details['id'], flow) for flow in other_flows]

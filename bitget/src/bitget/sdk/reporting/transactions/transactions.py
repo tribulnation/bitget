@@ -1,7 +1,7 @@
 from typing_extensions import AsyncIterable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from trading_sdk.reporting import Transactions as _Transactions, Transaction
+from trading_sdk.reporting import Transactions as _Transactions, Transaction, Flow
 
 from bitget.sdk.core import SdkMixin
 from .spot import SpotTransactions
@@ -33,7 +33,7 @@ class Transactions(SdkMixin, _Transactions):
       return self.tz
 
   def add_tz(self, tx: Transaction) -> Transaction:
-    return tx.replace_time(tx.operation.time.replace(tzinfo=self.timezone))
+    return tx.replace_time(tx.event.time.replace(tzinfo=self.timezone))
 
   def __post_init__(self):
     self.spot_transactions = SpotTransactions(self.client, unkwown_types_as_other=self.unkwown_types_as_other)

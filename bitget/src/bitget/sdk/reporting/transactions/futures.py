@@ -6,14 +6,14 @@ import warnings
 
 from trading_sdk.util import Stream, ChunkedStream
 from trading_sdk.reporting.transactions import (
-  Posting, SinglePostingOperation,match_transactions,
+  Flow, SingleEvent,match_transactions,
   Transaction, FutureTrade, Fee
 )
 
 from bitget import Bitget
 from bitget.futures.trade.fills import fill_direction
 
-DEFAULT_TRANSACTION_TYPES: dict[str, Posting.Type] = {
+DEFAULT_TRANSACTION_TYPES: dict[str, Flow.Label] = {
   'close_long': 'settlement', # closing P/L
   'close_short': 'settlement', # closing P/L
   'burst_close_long': 'settlement', # closing P/L
@@ -46,11 +46,11 @@ DEFAULT_IGNORE_TYPES: set[str] = {
 @dataclass
 class FutureTransactions:
   client: Bitget
-  transaction_types: dict[str, Posting.Type] = field(kw_only=True, default_factory=lambda: DEFAULT_TRANSACTION_TYPES)
+  transaction_types: dict[str, Flow.Label] = field(kw_only=True, default_factory=lambda: DEFAULT_TRANSACTION_TYPES)
   ignore_types: set[str] = field(kw_only=True, default_factory=lambda: DEFAULT_IGNORE_TYPES)
   unkwown_types_as_other: bool = field(kw_only=True, default=True)
 
-  def transaction_type(self, type: str) -> Posting.Type | None:
+  def transaction_type(self, type: str) -> Flow.Label | None:
     if type not in self.ignore_types:
       if type not in self.transaction_types:
         if self.unkwown_types_as_other:
@@ -64,16 +64,16 @@ class FutureTransactions:
     async for chunk in self.client.common.tax.futures_transaction_records_paged(start=start, end=end):
       for tx in chunk:
         if (type := self.transaction_type(tx['futureTaxType'])) is not None:
-          yield Posting(
+          yield Flow(
             asset=tx['marginCoin'], change=tx['amount'],
             kind='currency', time=tx['ts'], details=tx,
-            type=type,
+            label=type,
           )
         if (fee := abs(tx['fee'])) > 0:
-          yield Posting(
+          yield Flow(
             asset=tx['marginCoin'], change=-fee,
             kind='currency', time=tx['ts'],
-            details=tx, type='fee',
+            details=tx, label='fee',
           )
 
   @Stream.lift
@@ -90,10 +90,10 @@ class FutureTransactions:
         yield FutureTrade(
           id=fill['tradeId'],
           time=fill['cTime'],
-          asset=fill['symbol'],
+          instrument=fill['symbol'],
           size=fill['baseVolume'],
           price=fill['price'],
-          liquidity='TAKER' if fill['tradeScope'] == 'taker' else 'MAKER',
+          liquidity=fill['tradeScope'],
           side=fill_direction(fill),
           details=fill,
           fee=fee,
@@ -106,9 +106,4 @@ class FutureTransactions:
 
     matched_txs, other_postings = match_transactions(postings, trades)
     yield matched_txs
-    yield [
-      Transaction(
-        operation=SinglePostingOperation.of(posting.details['id'], posting),
-        postings=[posting],
-      ) for posting in other_postings
-    ]
+    yield [Transaction.single(posting.details['id'], posting) for posting in other_postings]

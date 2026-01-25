@@ -61,7 +61,7 @@ class Fill(TypedDict):
   cTime: Timestamp
   """Date of transaction"""
 
-def fill_direction(fill: Fill) -> Literal['BUY', 'SELL']:
+def fill_direction(fill: Fill) -> Literal['buy', 'sell']:
   """Interpret the direction of a fill (which isn't a priori obvious).
   Returns:
     - `BUY` = open long OR close short
@@ -69,13 +69,13 @@ def fill_direction(fill: Fill) -> Literal['BUY', 'SELL']:
   """
   side, trade_side = fill['side'], fill['tradeSide']
   if 'close_long' in trade_side:
-    return 'SELL'
+    return 'sell'
   if 'close_short' in trade_side:
-    return 'BUY'
+    return 'buy'
   if trade_side == 'open':
-    return 'BUY' if side == 'buy' else 'SELL'
+    return 'buy' if side == 'buy' else 'sell'
   if trade_side == 'close':
-    return 'SELL' if side == 'buy' else 'BUY'
+    return 'sell' if side == 'buy' else 'buy'
 
   raise ValueError(f"Unknown fill direction for fill: {fill}")
 

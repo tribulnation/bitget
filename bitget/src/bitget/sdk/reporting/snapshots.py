@@ -139,6 +139,6 @@ class Snapshots(SdkMixin, SnapshotsTDK):
       Snapshot(asset=asset, time=time, qty=p.size, avg_price=p.entry, kind='future')
       for asset, p in positions.items()
     ] + [
-      Snapshot(asset=f'BOT-{asset}', time=time, qty=Decimal(qty), kind='strategy')
+      Snapshot(asset=asset, time=time, qty=Decimal(qty), kind='strategy')
       for asset, qty in bot_assets.items()
     ]
