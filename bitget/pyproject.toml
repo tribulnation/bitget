@@ -3,12 +3,12 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bitget-trading-sdk"
-version = "0.1.2"
+name = "typed-bitget"
+version = "0.1.1"
 authors = [
   {name="Marcel Claramunt", email="marcel@tribulnation.com"}
 ]
-description = "The unofficial Bitget API SDK, by Tribulnation. Compatible with Trading SDK."
+description = "A fully typed, validated async client for the Bitget API."
 dependencies = [
   "lazy-loader", "httpx", "pydantic", "websockets", "orjson",
 ]
