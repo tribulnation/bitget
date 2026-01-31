@@ -1,0 +1,61 @@
+from datetime import datetime, timedelta
+from dataclasses import dataclass
+from decimal import Decimal
+
+from bitget.core import Endpoint, rate_limit, validator, TypedDict, Timestamp, timestamp as ts
+
+class CandleItem(TypedDict):
+  ts: Timestamp
+  open: Decimal
+  high: Decimal
+  low: Decimal
+  close: Decimal
+  baseVolume: Decimal
+  usdtVolume: Decimal
+  quoteVolume: Decimal
+
+def _candle_row(v: list) -> CandleItem:
+  return {
+    'ts': ts.parse(v[0]),
+    'open': Decimal(v[1]),
+    'high': Decimal(v[2]),
+    'low': Decimal(v[3]),
+    'close': Decimal(v[4]),
+    'baseVolume': Decimal(v[5]),
+    'usdtVolume': Decimal(v[6]),
+    'quoteVolume': Decimal(v[7]),
+  }
+
+@dataclass
+class Candles(Endpoint):
+  @rate_limit(timedelta(seconds=1/20))
+  async def candles(
+    self,
+    symbol: str,
+    granularity: str,
+    *,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    limit: int | None = None,
+    validate: bool | None = None
+  ) -> list[CandleItem]:
+    """Get Candlestick Data
+
+    - `symbol`: Trading pair, e.g. BTCUSDT.
+    - `granularity`: 1min, 3min, 5min, 15min, 30min, 1h, 4h, 6h, 12h, 1day, 3day, 1week, 1M, etc.
+    - `start`, `end`: Time range. Max range depends on granularity.
+    - `limit`: Default 100, max 1000.
+    - `validate`: Whether to validate the response (default: True).
+
+    > [Bitget API docs](https://www.bitget.com/api-doc/spot/market/Get-Candle-Data)
+    """
+    params: dict = {'symbol': symbol, 'granularity': granularity}
+    if start is not None:
+      params['startTime'] = ts.dump(start)
+    if end is not None:
+      params['endTime'] = ts.dump(end)
+    if limit is not None:
+      params['limit'] = limit
+    r = await self.request('GET', '/api/v2/spot/market/candles', params=params)
+    raw = self.output(r.text, validator(list), validate=False)
+    return [_candle_row(row) for row in raw]

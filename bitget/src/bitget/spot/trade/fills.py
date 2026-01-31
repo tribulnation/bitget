@@ -16,7 +16,7 @@ class Fill(TypedDict):
   symbol: str
   orderId: str
   tradeId: str
-  orderType: str
+  orderType: Literal['limit', 'market']
   side: Literal['buy', 'sell']
   priceAvg: Decimal
   size: Decimal
@@ -88,7 +88,7 @@ class Fills(AuthEndpoint):
     while True:
       chunk = await self.fills(symbol=symbol, start=start, end=end, limit=limit, validate=validate, id_less_than=last_id)
       if chunk:
-        last_id = chunk[-1]['orderId']
+        last_id = chunk[-1]['tradeId']
         yield chunk
       else:
         break
