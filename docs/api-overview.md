@@ -20,15 +20,43 @@ async with Bitget.new() as client:
 
 ## Spot Trading
 
+### Spot Public
+
+**Module**: `client.spot.public`
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `server_time()` | Get server time | `datetime` |
+| `coins()` | Get coin list | `list` |
+| `symbols()` | Get trading pairs | `list[Symbol]` |
+
+### Spot Market
+
+**Module**: `client.spot.market`
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `vip_fee_rate()` | Get VIP fee rate | — |
+| `tickers()` | Get ticker info | `list[TickerItem]` |
+| `orderbook()` | Get order book depth | `OrderbookData` |
+| `merge_depth()` | Get merged order book depth | `MergeDepthData` |
+| `candles()` | Get candlestick data | `list` |
+| `history_candles()` | Get historical candles | `list` |
+| `recent_trades()` | Get recent trades | `list[RecentTradeItem]` |
+| `market_trades()` | Get market trades history | `list[MarketTradeItem]` |
+
 ### Spot Account
 
 **Module**: `client.spot.account`
 
 | Method | Description | Returns |
 |--------|-------------|---------|
+| `account_info()` | Get account information | — |
 | `assets()` | Get spot account assets | `list[Asset]` |
-| `deposit_records()` | Get deposit history | `DepositRecordsResponse` |
-| `withdrawal_records()` | Get withdrawal history | `WithdrawalRecordsResponse` |
+| `bills()` | Get account bills | `list` |
+| `subaccount_assets()` | Get sub-accounts assets (assets > 0) | `list[SubaccountAssetsItem]` |
+| `transfer_records()` | Get transfer record | `list[TransferRecordItem]` |
+| `deduct_info()` | Get BGB deduct info | `DeductInfoData` |
 
 **Example:**
 
@@ -41,24 +69,9 @@ usdt = await client.spot.account.assets(coin='USDT')
 
 # Get only non-zero balances
 held = await client.spot.account.assets(asset_type='hold_only')
-```
 
-### Spot Market
-
-**Module**: `client.spot.market`
-
-| Method | Description | Returns |
-|--------|-------------|---------|
-| `symbols()` | Get all trading pairs | `list[Symbol]` |
-
-**Example:**
-
-```python
-# Get all symbols
-symbols = await client.spot.market.symbols()
-
-# Filter for BTC pairs
-btc_pairs = [s for s in symbols if s['baseCoin'] == 'BTC']
+# Sub-accounts with balance
+subs = await client.spot.account.subaccount_assets()
 ```
 
 ### Spot Trade
@@ -67,21 +80,80 @@ btc_pairs = [s for s in symbols if s['baseCoin'] == 'BTC']
 
 | Method | Description | Returns |
 |--------|-------------|---------|
-| `fills()` | Get trade fills | `FillsResponse` |
+| `place_order()` | Place order | `PlaceOrderData` |
+| `cancel_order()` | Cancel order | `CancelOrderData` |
+| `batch_place_orders()` | Batch place orders | `BatchPlaceOrderData` |
+| `batch_cancel_orders()` | Batch cancel orders | `BatchCancelOrdersData` |
+| `batch_cancel_replace_order()` | Cancel and replace (batch) | `list[BatchCancelReplaceItemResult]` |
+| `cancel_symbol_order()` | Cancel all orders for symbol | — |
+| `order_info()` | Get order info | `list[OrderInfoItem]` |
+| `unfilled_orders()` | Get current (unfilled) orders | `list[UnfilledOrderItem]` |
+| `history_orders()` | Get history orders | `list[HistoryOrderItem]` |
+| `fills()` | Get fills | `list[Fill]` |
+| `fills_paged()` | Get fills (paginated) | `AsyncGenerator` |
 
 **Example:**
 
 ```python
 from datetime import datetime, timedelta
 
-end = datetime.now()
-start = end - timedelta(days=7)
+# Place limit order (use symbol price precision)
+symbols = await client.spot.public.symbols(symbol='USDCUSDT')
+prec = int(symbols[0]['pricePrecision'])
+place = await client.spot.trade.place_order(
+    'USDCUSDT', 'buy', 'limit', '5',
+    price=str(round(1.0 - 0.01, prec))
+)
+oid = place['orderId']
+await client.spot.trade.cancel_order('USDCUSDT', order_id=oid)
 
-fills = await client.spot.trade.fills(
-    symbol='BTCUSDT',
-    start=start,
-    end=end,
-    limit=100
+# Fills
+fills = await client.spot.trade.fills(symbol='USDCUSDT', limit=100)
+async for chunk in client.spot.trade.fills_paged(symbol='USDCUSDT', limit=20):
+    ...
+```
+
+### Spot Trigger (Plan Orders)
+
+**Module**: `client.spot.trigger`
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `place_plan_order()` | Place plan order | `PlacePlanOrderData` |
+| `modify_plan_order()` | Modify plan order | `ModifyPlanOrderData` |
+| `current_plan_orders()` | Get current plan orders | `CurrentPlanOrdersData` |
+| `history_plan_orders()` | Get history plan orders | `HistoryPlanOrdersData` |
+| `batch_cancel_plan_order()` | Batch cancel plan orders | `BatchCancelPlanOrderData` |
+
+### Spot Wallet
+
+**Module**: `client.spot.wallet`
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `modify_deposit_account()` | Modify deposit account (auto-transfer) | — |
+| `sub_transfer()` | Sub-account transfer | `SubTransferData` |
+| `subaccount_deposit_address()` | Get sub-account deposit address | — |
+| `deposit_address()` | Get deposit address | — |
+| `deposit_records()` | Get deposit history | — |
+| `withdrawal_records()` | Get withdrawal history | — |
+| `transfer()` | Transfer between product types | `TransferData` |
+| `transfer_coin_info()` | Get transferable coin list | `list[str]` |
+| `withdrawal()` | Withdraw (on-chain or internal) | `WithdrawalData` |
+| `cancel_withdrawal()` | Cancel withdrawal | `CancelWithdrawalData` |
+
+**Example:**
+
+```python
+# Transfer spot -> isolated margin (symbol required for margin)
+await client.spot.wallet.transfer(
+    'spot', 'isolated_margin', '100', 'USDT',
+    symbol='BTCUSDT'
+)
+
+# Transferable coins between two account types
+coins = await client.spot.wallet.transfer_coin_info(
+    'spot', 'isolated_margin'
 )
 ```
 
